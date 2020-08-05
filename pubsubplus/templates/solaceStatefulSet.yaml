@@ -140,19 +140,19 @@ spec:
           readOnly: true
         - name: dshm
           mountPath: /dev/shm
-        - name: data
+        - name: data2
           mountPath: /usr/sw/jail
           subPath: jail
-        - name: data
+        - name: data2
           mountPath: /usr/sw/var
           subPath: var
         - name: data
           mountPath: /usr/sw/internalSpool
           subPath: internalSpool
-        - name: data
+        - name: data2
           mountPath: /usr/sw/adb
           subPath: adb
-        - name: data
+        - name: data2
           mountPath: /var/lib/solace/diags
           subPath: diags
         {{- if and (not .Values.storage.slow) (not .Values.storage.nfs) }}
@@ -199,4 +199,14 @@ spec:
       resources:
         requests:
           storage: {{ .Values.storage.size}}
+  - metadata:
+      name: data2
+    spec:
+  {{- if .Values.storage.useStorageClass }}
+      storageClassName: {{ .Values.storage.useStorageClass }}
+  {{- end}}
+      accessModes: [ "ReadWriteOnce" ]
+      resources:
+        requests:
+          storage: {{ .Values.storage.size2}}
 {{- end }}
