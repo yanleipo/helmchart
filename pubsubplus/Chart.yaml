@@ -24,4 +24,4 @@ maintainers:
 name: pubsubplus
 sources:
 - https://github.com/SolaceProducts/pubsubplus-kubernetes-quickstart
-version: 2.1.2.1
+version: 2.1.3
