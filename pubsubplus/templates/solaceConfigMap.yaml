@@ -18,11 +18,9 @@ data:
       export service_semp_tlsport='1943'
       export logging_debug_output=all
       export logging_command_output=all
-      export logging_system_output=all
       export logging_event_output=all
       export logging_debug_format=legacy
       export logging_command_format=legacy
-      export logging_system_format=legacy
       export logging_event_format=legacy
 {{- if eq .Values.solace.size "dev" }}
       export system_scaling_maxconnectioncount="100"
