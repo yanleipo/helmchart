@@ -157,7 +157,7 @@ spec:
           subPath: diags
         {{- if and (not .Values.storage.slow) (not .Values.storage.nfs) }}
         # only mount when not using slow storage
-        - name: data
+        - name: data2
           mountPath: /usr/sw/internalSpool/softAdb
           subPath: softAdb
         {{- end }}
