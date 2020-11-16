@@ -1,104 +1,179 @@
-# Solace PubSub+ Software Event Broker - Helm Chart
+[![Build Status](https://travis-ci.org/SolaceProducts/pubsubplus-kubernetes-quickstart.svg?branch=master)](https://travis-ci.org/SolaceProducts/pubsubplus-kubernetes-quickstart)
 
-The [Solace PubSub+ Platform](https://solace.com/products/platform/)'s [software event broker](https://solace.com/products/event-broker/software/) efficiently streams event-driven information between applications, IoT devices and user interfaces running in cloud, on-premises, and hybrid environments using open APIs and protocols like AMQP, JMS, MQTT, REST and WebSocket. It can be installed into a variety of public and private clouds, PaaS, and on-premises environments, and brokers in multiple locations can be linked together in an [event mesh](https://solace.com/what-is-an-event-mesh/) to dynamically share events across the distributed enterprise.
+# Install a Solace PubSub+ Software Event Broker onto a Kubernetes cluster
+
+The [Solace PubSub+ Platform](https://solace.com/products/platform/)'s [software event broker](https://solace.com/products/event-broker/software/) efficiently streams event-driven information between applications, IoT devices and user interfaces running in the cloud, on-premises, and hybrid environments using open APIs and protocols like AMQP, JMS, MQTT, REST and WebSocket. It can be installed into a variety of public and private clouds, PaaS, and on-premises environments, and brokers in multiple locations can be linked together in an [event mesh](https://solace.com/what-is-an-event-mesh/) to dynamically share events across the distributed enterprise.
 
 ## Overview
 
-This chart bootstraps a single-node or HA deployment of a [Solace PubSub+ Software Event Broker](//solace.com/products/event-broker/software/) on a [Kubernetes](//kubernetes.io) cluster using the [Helm](//helm.sh) package manager.
+This document provides a quick getting started guide to install a software event broker in various configurations onto a [Kubernetes](https://kubernetes.io/docs/home/) cluster. The recommended software event broker version is 9.4 or later.
 
-Detailed documentation is provided in the [Solace PubSub+ Software Event Broker on Kubernetes Documentation](//github.com/SolaceProducts/pubsubplus-kubernetes-quickstart/blob/master/docs/PubSubPlusK8SDeployment.md).
+*Detailed* *documentation* is provided in the [Solace PubSub+ Software Event Broker on Kubernetes Documentation](docs/PubSubPlusK8SDeployment.md).
 
-## Prerequisites
+This quick start is intended mainly for development and demo purposes. Consult the [Deployment Considerations](https://github.com/SolaceProducts/pubsubplus-kubernetes-quickstart/blob/master/docs/PubSubPlusK8SDeployment.md#pubsub-event-broker-deployment-considerations) section of the Documentation when planning your deployment.
 
-* Kubernetes 1.10 or later platform with adequate [CPU and memory](//github.com/SolaceProducts/pubsubplus-kubernetes-quickstart/blob/master/docs/PubSubPlusK8SDeployment.md#cpu-and-memory-requirements) and [storage resources](//github.com/SolaceProducts/pubsubplus-kubernetes-quickstart/blob/master/docs/PubSubPlusK8SDeployment.md#disk-storage) for the targeted scaling tier requirements
-* Helm package manager v2 or v3 client installed and configured with Tiller deployed if using Helm v2
-* If using a private Docker registry, load the PubSub+ Software Event Broker Docker image and for signed images create an image pull secret
-* With persistent storage enabled (see in [Configuration](#config-storageclass)):
-  * Specify a storage class unless using a default storage class in your Kubernetes cluster
+This document is applicable to any platform supporting Kubernetes, with specific hints on how to set up a simple MiniKube deployment on a Linux-based machine. To view examples of other Kubernetes platforms see:
 
-Also review additional [deployment considerations](//github.com/SolaceProducts/pubsubplus-kubernetes-quickstart/blob/master/docs/PubSubPlusK8SDeployment.md#pubsub-software-event-broker-deployment-considerations).
+- [Deploying a Solace PubSub+ Software Event Broker HA group onto a Google Kubernetes Engine](//github.com/SolaceProducts/solace-gke-quickstart )
+- [Deploying a Solace PubSub+ Software Event Broker HA Group onto an OpenShift 3.11 platform](//github.com/SolaceProducts/solace-openshift-quickstart )
+- Deploying a Solace PubSub+ Software Event Broker HA Group onto Amazon EKS (Amazon Elastic Container Service for Kubernetes): follow the [AWS documentation](//docs.aws.amazon.com/eks/latest/userguide/getting-started.html ) to set up EKS then this guide to deploy.
+- [Install a Solace PubSub+ Software Event Broker onto a Pivotal Container Service (PKS) cluster](//github.com/SolaceProducts/solace-pks )
+- Deploying a Solace PubSub+ Software Event Broker HA Group onto Azure Kubernetes Service (AKS): follow the [Azure documentation](//docs.microsoft.com/en-us/azure/aks/ ) to deploy an AKS cluster then this guide to deploy.
 
-## Create a deployment
+## How to deploy the Solace PubSub+ Software Event Broker onto Kubernetes
+
+Solace PubSub+ Software Event Broker can be deployed in either a three-node High-Availability (HA) group or as a single-node standalone deployment. For simple test environments that need only to validate application functionality, a single instance will suffice. Note that in production, or any environment where message loss cannot be tolerated, an HA deployment is required.
+
+We recommend using the Helm tool for convenience. An [alternative method](/docs/PubSubPlusK8SDeployment.md#alternative-deployment-with-generating-templates-for-the-kubernetes-kubectl-tool) using generated templates is also provided.
+
+In this quick start we go through the steps to set up a PubSub+ Software Event Broker using [Solace PubSub+ Helm charts](//hub.helm.sh/charts/solace).
+
+There are three Helm chart variants available with default small-size configurations:
+1.	`pubsubplus-dev` - recommended PubSub+ Software Event Broker for Developers (standalone) - no guaranteed performance
+2.	`pubsubplus` - PubSub+ Software Event Broker standalone, supporting 100 connections
+3.	`pubsubplus-ha` - PubSub+ Software Event Broker HA, supporting 100 connections
+
+For other PubSub+ Software Event Broker configurations or sizes, refer to the [PubSub+ Software Event Broker Helm Chart Reference](/pubsubplus/README.md).
+
+### 1. Get a Kubernetes environment
+
+Follow your Kubernetes provider's instructions ([other options available here](https://kubernetes.io/docs/setup/)). Ensure you meet [minimum CPU, Memory and Storage requirements](docs/PubSubPlusK8SDeployment.md#cpu-and-memory-requirements) for the targeted PubSub+ Software Event Broker configuration size. Important: the broker resource requirements refer to available resources on a [Kubernetes node](https://kubernetes.io/docs/concepts/scheduling-eviction/kube-scheduler/#kube-scheduler).
+> Note: If using [MiniKube](https://kubernetes.io/docs/setup/learning-environment/minikube/), use `minikube start` with specifying the options `--memory` and `--cpu` to assign adequate resources to the MiniKube VM. The recommended memory is 1GB plus the minimum requirements of your event broker.
+
+Also have the `kubectl` tool [installed](https://kubernetes.io/docs/tasks/tools/install-kubectl/) locally.
+
+Check to ensure your Kubernetes environment is ready:
+```bash
+# This shall return worker nodes listed and ready
+kubectl get nodes
+```
+
+### 2. Install and configure Helm
+
+Follow the [Helm Installation notes of your target release](https://github.com/helm/helm/releases) for your platform.
+Note that Helm is transitioning from v2 to v3. Some deployments still use v2. The event broker can be deployed using either version, however concurrent use of v2 and v3 from the same command-line environment is not supported.
+
+On Linux a simple option to set up the latest stable release is to run:
+
+(Click on the arrow to open instructions for Helm v2 or v3)
+
+<details><summary><b>Instructions for Helm v2 setup</b></summary>
+<p>
 
 ```bash
-helm repo add solacecharts https://solaceproducts.github.io/pubsubplus-kubernetes-quickstart/helm-charts
+curl -sSL https://raw.githubusercontent.com/helm/helm/master/scripts/get | bash
+```
+
+Deploy Tiller, Helm's in-cluster operator:
+```bash
+# This enables getting started on most platforms by granting Tiller cluster-admin privileges
+kubectl -n kube-system create serviceaccount tiller
+kubectl create clusterrolebinding tiller --clusterrole cluster-admin --serviceaccount=kube-system:tiller
+helm init --wait --service-account=tiller --upgrade # this may take some time
+```
+Warning: [more restricted Tiller privileges](/docs/PubSubPlusK8SDeployment.md#install-and-setup-the-helm-package-manager) are recommended in a production environment.
+</p>
+</details>
+
+<details><summary><b>Instructions for Helm v3 setup</b></summary>
+<p>
+
+```bash
+curl https://raw.githubusercontent.com/helm/helm/master/scripts/get-helm-3 | bash
+```
+</p>
+</details>
+
+
+Helm is configured properly if the command `helm version` returns no error.
+
+
+### 3. Install the Solace PubSub+ Software Event Broker with default configuration
+
+- Add the Solace Helm charts to your local Helm repo:
+```bash
+  helm repo add solacecharts https://solaceproducts.github.io/pubsubplus-kubernetes-quickstart/helm-charts
+```
+- By default the publicly available [latest Docker image of PubSub+ Software Event Broker Standard Edition](https://hub.Docker.com/r/solace/solace-pubsub-standard/tags/) will be used. Specify a different image or [use a Docker image from a private registry](/docs/PubSubPlusK8SDeployment.md#using-private-registries) if required. If using a non-default image, add the `--set image.repository=<your-image-location>,image.tag=<your-image-tag>` values to the commands below.
+- Generally, for configuration options and ways to override default configuration values (using `--set` is one the options), consult the [PubSub+ Software Event Broker Helm Chart Reference](/pubsubplus/README.md#configuration).
+- Use one of the following chart variants to create a deployment: 
+
+(Click on the arrow to open instructions for Helm v2 or v3)
+
+<details><summary><b>Install using Helm v2</b></summary>
+<p>
+
+a) Create a Solace PubSub+ Software Event Broker deployment for development purposes using `pubsubplus-dev`. It requires a minimum of 1 CPU and 3.6 GB of memory be available to the event broker pod.
+```bash
+# Deploy PubSub+ Software Event Broker Standard edition for developers
+helm install --name my-release solacecharts/pubsubplus-dev
+```
+
+b) Create a Solace PubSub+ standalone deployment, supporting 100 connections scaling using `pubsubplus`. A minimum of 2 CPUs and 3.6 GB of memory must be available to the event broker pod.
+```bash
+# Deploy PubSub+ Software Event Broker Standard edition, standalone
 helm install --name my-release solacecharts/pubsubplus
 ```
 
-## Use a deployment
-
-Obtain information about the deployment and services:
-
+c) Create a Solace PubSub+ HA deployment, supporting 100 connections scaling using `pubsubplus-ha`. The minimum resource requirements are 2 CPU and 3.6 GB of memory available to each of the three event broker pods.
 ```bash
-helm status my-release
+# Deploy PubSub+ Software Event Broker Standard edition, HA
+helm install --name my-release solacecharts/pubsubplus-ha
 ```
+</p>
+</details>
+
+<details><summary><b>Install using Helm v3</b></summary>
+<p>
+
+a) Create a Solace PubSub+ Software Event Broker deployment for development purposes using `pubsubplus-dev`. It requires a minimum of 1 CPU and 2 GB of memory available to the event broker pod.
+```bash
+# Deploy PubSub+ Software Event Broker Standard edition for developers
+helm install my-release solacecharts/pubsubplus-dev
+```
+
+b) Create a Solace PubSub+ standalone deployment, supporting 100 connections scaling using `pubsubplus`. A minimum of 2 CPUs and 4 GB of memory must be available to the event broker pod.
+```bash
+# Deploy PubSub+ Software Event Broker Standard edition, standalone
+helm install my-release solacecharts/pubsubplus
+```
+
+c) Create a Solace PubSub+ HA deployment, supporting 100 connections scaling using `pubsubplus-ha`. The minimum resource requirements are 2 CPU and 4 GB of memory available to each of the three event broker pods.
+```bash
+# Deploy PubSub+ Software Event Broker Standard edition, HA
+helm install my-release solacecharts/pubsubplus-ha
+```
+</p>
+</details>
+
+The above options will start the deployment and write related information and notes to the screen.
+
+> Note: When using MiniKube, there is no integrated Load Balancer, which is the default service type. For a workaround, execute `minikube service my-release-pubsubplus-dev` to expose the services. Services will be accessible directly using the NodePort instead of direct Port access, for which the mapping can be obtained from `kubectl describe service my-release-pubsubplus-dev`.
+
+Wait for the deployment to complete following the information printed on the console.
 
 Refer to the detailed PubSub+ Kubernetes documentation for:
 * [Validating the deployment](//github.com/SolaceProducts/pubsubplus-kubernetes-quickstart/blob/master/docs/PubSubPlusK8SDeployment.md#validating-the-deployment); or
 * [Troubleshooting](//github.com/SolaceProducts/pubsubplus-kubernetes-quickstart/blob/master/docs/PubSubPlusK8SDeployment.md#troubleshooting)
 * [Modifying or Upgrading](//github.com/SolaceProducts/pubsubplus-kubernetes-quickstart/blob/master/docs/PubSubPlusK8SDeployment.md#modifying-or-upgrading-a-deployment)
+* [Deleting the deployment](//github.com/SolaceProducts/pubsubplus-kubernetes-quickstart/blob/master/docs/PubSubPlusK8SDeployment.md#deleting-a-deployment)
 
-## Delete a deployment
+## Contributing
 
-```bash
-helm delete --purge my-release
-kubectl get pvc | grep data-my-release
-# Delete any PVCs related to my-release
-```
-**Important:** Ensure to delete existing PVCs if reusing the same deployment name for a clean new deployment.
+Please read [CONTRIBUTING.md](CONTRIBUTING.md) for details on our code of conduct, and the process for submitting pull requests to us.
 
-## Configuration
+## Authors
 
-The following table lists the configurable parameters of the PubSub+ chart and their default values. For a detailed discussion refer to the [Deployment Considerations](//github.com/SolaceProducts/pubsubplus-kubernetes-quickstart/blob/master/docs/PubSubPlusK8SDeployment.md##pubsub-helm-chart-deployment-considerations) in the PubSub+ Kubernetes documentation.
+See the list of [contributors](//github.com/SolaceProducts/pubsubplus-kubernetes-quickstart/graphs/contributors) who participated in this project.
 
-There are several ways to customize the deployment:
+## License
 
-- Override default values using the `--set key=value[,key=value]` argument to `helm install`. For example,
-```bash
-helm install --name my-release \
-  --set solace.redundancy=true,solace.usernameAdminPassword=secretpassword \
-  solacecharts/pubsubplus
-```
+This project is licensed under the Apache License, Version 2.0. - See the [LICENSE](LICENSE) file for details.
 
-- Another option is to create a YAML file containing the values to override and pass that to Helm:
-```bash
-# Create file
-echo "# Overrides:
-solace:
-  redundancy: true
-  usernameAdminPassword: secretpassword" > my-values.yaml
-# Now use the file:
-helm install --name my-release -f my-values.yaml solacecharts/pubsubplus
-```
-> Note: as an alternative to creating a new file you can [download](https://raw.githubusercontent.com/SolaceProducts/pubsubplus-kubernetes-quickstart/master/pubsubplus/values.yaml) the `values.yaml` file with default values and edit that for overrides.
+## Resources
 
-For more ways to override default chart values, refer to [Customizing the Helm Chart Before Installing](//helm.sh/docs/intro/using_helm/#customizing-the-chart-before-installing).
+For more information about Solace technology in general please visit these resources:
 
-| Parameter                      | Description                                                                                             | Default                                                 |
-| ------------------------------ | ------------------------------------------------------------------------------------------------------- | ------------------------------------------------------- |
-| `nameOverride`                 | Kubernetes objects will be named as `<release-name>-nameOverride`                                       | Undefined, default naming is `<release-name>-<chart-name>` |
-| `fullnameOverride`             | Kubernetes objects will be named as `fullnameOverride`                                                  | Undefined, default naming is `<release-name>-<chart-name>` |
-| `solace.redundancy`            | `false` will create a single-node non-HA deployment; `true` will create an HA deployment with Primary, Backup and Monitor nodes | `false` |
-| `solace.size`                  | Event broker connection scaling. Options: `dev` (requires minimum resources but no guaranteed performance), `prod100`, `prod1k`, `prod10k`, `prod100k`, `prod200k` | `prod100` |
-| `solace.usernameAdminPassword` | The password for the "admin" management user. Will autogenerate it if not provided. **Important:** refer to the the information from `helm status` how to retrieve it and use it for `helm upgrade`. | Undefined, meaning autogenerate |
-| `solace.timezone`              | Timezone setting for the PubSub+ container. Valid values are tz database time zone names.               | Undefined, default is UTC |
-| `image.repository`             | The docker repo name and path to the Solace Docker image                                                | `solace/solace-pubsub-standard` from public DockerHub   |
-| `image.tag`                    | The Solace Docker image tag. It is recommended to specify an explicit tag for production use            | `latest`                                                |
-| `image.pullPolicy`             | Image pull policy                                                                                       | `IfNotPresent`                                          |
-| `image.pullSecretName`         | Name of the ImagePullSecret to be used with the Docker registry                                         | Undefined, meaning no ImagePullSecret used                |
-| `securityContext.enabled`      | `true` enables to using defined `fsGroup` and `runAsUser`. Set to `false` if `fsGroup` and `runAsUser` conflict with PodSecurityPolicy or Openshift SCC settings. | `true` meaning `fsGroup` and `runAsUser` used |
-| `securityContext.fsGroup`      | Specifies `fsGroup` in pod security context                                                             | set to default non-zero id 1000002 |
-| `securityContext.runAsUser`    | Specifies `runAsUser` in pod security context                                                           | set to default PubSub+ appuser id 1000001 |
-| `serviceAccount.create`        | `true` will create a service account dedicated to the deployment in the namespace                       | `true` |
-| `serviceAccount.name`          | Refer to https://helm.sh/docs/topics/chart_best_practices/rbac/#using-rbac-resources                    | Undefined |
-| `service.type`                 | How to expose the service: options include ClusterIP, NodePort, LoadBalancer                            | `LoadBalancer`                                          |
-| `service.annotations`                 | service.annotations allows to add provider-specific service annotations                          | Undefined  |
-| `service.ports`                | Define PubSub+ service ports exposed. servicePorts are external, mapping to cluster-local pod containerPorts | initial set of frequently used ports, refer to values.yaml |
-| `storage.persistent`           | `false` to use ephemeral storage at pod level; `true` to request persistent storage through a StorageClass | `true`, false is not recommended for production use  |
-| `storage.slow`                 | `true` to indicate slow storage used, e.g. for NFS.                                                    | `false` |
-| `storage.customVolumeMount`    | customVolumeMount can be used to specify a YAML fragment how the data volume should be mounted  instead of using a storage class. | Undefined |
-| `storage.useStorageClass` <a name="config-storageclass"></a> | Name of the StorageClass to be used to request persistent storage volumes                               | Undefined, meaning to use the "default" StorageClass for the Kubernetes cluster |
-| `storage.size`                 | Size of the persistent storage to be used; Refer to the Solace documentation for storage configuration requirements | `30Gi` |
-
-
-
+- The Solace Developer Portal website at: [solace.dev](//solace.dev/)
+- Understanding [Solace technology](//solace.com/products/platform/)
+- Ask the [Solace community](//dev.solace.com/community/).
